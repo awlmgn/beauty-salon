@@ -12,6 +12,7 @@ import 'appointments_screen.dart';
 import 'reviews_screen.dart';
 import 'about_screen.dart';
 import 'payment_screen.dart';
+import 'chats_screen.dart';
 import 'payment_success_screen.dart';
 import 'login_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -325,7 +326,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
             // Поиск и фильтры
             Container(
-              height: 172, // УМЕНЬШЕНА высота
+              height: 180, // УМЕНЬШЕНА высота
               color: Colors.white,
               padding: EdgeInsets.all(16),
               child: Column(
@@ -530,6 +531,17 @@ class _HomeScreenState extends State<HomeScreen> {
                         _currentUser = updatedUser; // ОБНОВЛЯЕМ ПОЛЬЗОВАТЕЛЯ
                       });
                     }
+                  },
+                ),
+                _buildDrawerItem(
+                  icon: Icons.chat,
+                  title: 'Чаты с мастерами',
+                  onTap: () {
+                    Navigator.pop(context);
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (context) => ChatsScreen()),
+                    );
                   },
                 ),
                 _buildDrawerItem(

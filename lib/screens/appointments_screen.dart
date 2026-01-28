@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import '../services/api_service.dart';
+import '../models/master.dart'; // Добавьте импорт
+import 'chat_screen.dart'; // Добавьте импорт
 
 class AppointmentsScreen extends StatefulWidget {
   const AppointmentsScreen({super.key});
@@ -57,6 +59,26 @@ class _AppointmentsScreenState extends State<AppointmentsScreen> {
     }
   }
 
+  // НОВЫЙ МЕТОД: Переход в чат с мастером
+  void _openChatWithMaster(Map<String, dynamic> appointment) {
+    // Создаем объект мастера из данных записи
+    final master = Master(
+      id: appointment['master_id'] ?? 0,
+      name: appointment['master_name'] ?? 'Мастер',
+      specialization: appointment['specialization'] ?? 'Парикмахер',
+      description: appointment['specialization'] ?? 'Профессиональный мастер',
+      experience: 3,
+      imageUrl: 'assets/default_master.png',
+    );
+
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => ChatScreen(master: master),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -64,6 +86,16 @@ class _AppointmentsScreenState extends State<AppointmentsScreen> {
         title: const Text('Мои записи'),
         backgroundColor: Colors.pink,
         foregroundColor: Colors.white,
+        actions: [
+          // Кнопка для перехода в общий чат со всеми мастерами
+          IconButton(
+            icon: const Icon(Icons.chat),
+            onPressed: () {
+              Navigator.pushNamed(context, '/chats');
+            },
+            tooltip: 'Чаты с мастерами',
+          ),
+        ],
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
@@ -77,6 +109,12 @@ class _AppointmentsScreenState extends State<AppointmentsScreen> {
             Text(
               'У вас пока нет записей',
               style: TextStyle(fontSize: 18, color: Colors.grey),
+            ),
+            SizedBox(height: 16),
+            Text(
+              'Запишитесь к мастеру, чтобы начать общение',
+              textAlign: TextAlign.center,
+              style: TextStyle(color: Colors.grey),
             ),
           ],
         ),
@@ -101,20 +139,35 @@ class _AppointmentsScreenState extends State<AppointmentsScreen> {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Text(
-                          appointment['master_name'] ?? 'Мастер',
-                          style: const TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
+                        Expanded(
+                          child: Text(
+                            appointment['master_name'] ?? 'Мастер',
+                            style: const TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                            ),
                           ),
                         ),
-                        if (!isPast)
-                          IconButton(
-                            icon: const Icon(Icons.cancel, color: Colors.red),
-                            onPressed: () {
-                              _showCancelDialog(appointment['id']);
-                            },
-                          ),
+                        Row(
+                          children: [
+                            // Кнопка чата - всегда видна
+                            IconButton(
+                              icon: const Icon(Icons.chat, color: Colors.blue),
+                              onPressed: () {
+                                _openChatWithMaster(appointment);
+                              },
+                              tooltip: 'Написать мастеру',
+                            ),
+                            // Кнопка отмены - только для будущих записей
+                            if (!isPast)
+                              IconButton(
+                                icon: const Icon(Icons.cancel, color: Colors.red),
+                                onPressed: () {
+                                  _showCancelDialog(appointment['id']);
+                                },
+                              ),
+                          ],
+                        ),
                       ],
                     ),
                     const SizedBox(height: 8),
@@ -133,14 +186,59 @@ class _AppointmentsScreenState extends State<AppointmentsScreen> {
                       style: const TextStyle(fontSize: 16),
                     ),
                     const SizedBox(height: 4),
-                    Text(
-                      'Статус: ${isPast ? 'Завершено' : 'Запланировано'}',
-                      style: TextStyle(
-                        fontSize: 16,
-                        color: isPast ? Colors.green : Colors.orange,
-                        fontWeight: FontWeight.bold,
-                      ),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          'Статус: ${isPast ? 'Завершено' : 'Запланировано'}',
+                          style: TextStyle(
+                            fontSize: 16,
+                            color: isPast ? Colors.green : Colors.orange,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        if (!isPast)
+                          ElevatedButton.icon(
+                            onPressed: () {
+                              _openChatWithMaster(appointment);
+                            },
+                            icon: const Icon(Icons.chat, size: 16),
+                            label: const Text('Написать'),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.blue,
+                              foregroundColor: Colors.white,
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 12, vertical: 6),
+                            ),
+                          ),
+                      ],
                     ),
+                    // Если запись завершена, предлагаем написать отзыв
+                    if (isPast)
+                      Container(
+                        margin: const EdgeInsets.only(top: 8),
+                        child: ElevatedButton(
+                          onPressed: () {
+                            // TODO: Добавить переход на экран отзыва
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                  content: Text('Функция отзыва в разработке')),
+                            );
+                          },
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.green,
+                            foregroundColor: Colors.white,
+                          ),
+                          child: const Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(Icons.star, size: 16),
+                              SizedBox(width: 8),
+                              Text('Оставить отзыв'),
+                            ],
+                          ),
+                        ),
+                      ),
                   ],
                 ),
               ),

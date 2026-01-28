@@ -2,10 +2,10 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import '../models/user.dart';
 import '../models/master.dart';
-
+import '../models/message.dart';
 class ApiService {
   // 🚀 ОБНОВИТЕ АДРЕС НА ВАШ АКТУАЛЬНЫЙ
-  static const String baseUrl = 'http://10.0.2.2:5000/api';
+  static const String baseUrl = 'http://localhost:5000/api';
   static String? token;
 
   static Future<http.Response> _request(String method, String endpoint, {Map<String, dynamic>? body}) async {
@@ -444,6 +444,127 @@ class ApiService {
       }
     } catch (error) {
       return {'success': false, 'message': 'Ошибка сети: $error'};
+    }
+  }
+  static Map<String, String> _getHeaders() {
+    final headers = {
+      'Content-Type': 'application/json',
+    };
+
+    if (token != null) {
+      headers['Authorization'] = 'Bearer $token';
+    }
+
+    return headers;
+  }
+  // В ApiService добавьте:
+  static Future<List<Message>> getMessages(int masterId) async {
+    try {
+      final response = await http.get(
+        Uri.parse('$baseUrl/api/messages/$masterId'),
+      );
+
+      if (response.statusCode == 200) {
+        final List<dynamic> data = json.decode(response.body);
+        return data.map((json) => Message.fromJson(json)).toList();
+      }
+      return [];
+    } catch (e) {
+      print('Error getting messages: $e');
+      return [];
+    }
+  }
+
+  static Future<bool> saveMessage(Message message) async {
+    try {
+      final response = await http.post(
+        Uri.parse('$baseUrl/api/messages'),
+        headers: {'Content-Type': 'application/json'},
+        body: json.encode(message.toJson()),
+      );
+
+      return response.statusCode == 200;
+    } catch (e) {
+      print('Error saving message: $e');
+      return false;
+    }
+  }
+
+  static Future<Map<String, dynamic>> getChats() async {
+    try {
+      final response = await http.get(
+        Uri.parse('$baseUrl/api/chats'),
+        headers: _getHeaders(),
+      );
+
+      if (response.statusCode == 200) {
+        return json.decode(response.body);
+      }
+      return {'success': false, 'message': 'Ошибка загрузки чатов'};
+    } catch (e) {
+      print('Error getting chats: $e');
+      return {'success': false, 'message': 'Ошибка сети: $e'};
+    }
+  }
+
+
+  static Future<Map<String, dynamic>> sendMessage({
+    required int masterId,
+    required String text,
+    bool isFromUser = true,
+  }) async {
+    try {
+      final response = await http.post(
+        Uri.parse('$baseUrl/api/messages'),
+        headers: _getHeaders(),
+        body: json.encode({
+          'master_id': masterId,
+          'text': text,
+          'is_from_user': isFromUser,
+        }),
+      );
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        return json.decode(response.body);
+      }
+      return {'success': false, 'message': 'Ошибка отправки сообщения'};
+    } catch (e) {
+      print('Error sending message: $e');
+      return {'success': false, 'message': 'Ошибка сети: $e'};
+    }
+  }
+
+  static Future<Map<String, dynamic>> getUnreadCount() async {
+    try {
+      final response = await http.get(
+        Uri.parse('$baseUrl/api/chats/unread-count'),
+        headers: _getHeaders(),
+      );
+
+      if (response.statusCode == 200) {
+        return json.decode(response.body);
+      }
+      return {'success': false, 'message': 'Ошибка загрузки счетчика'};
+    } catch (e) {
+      print('Error getting unread count: $e');
+      return {'success': false, 'message': 'Ошибка сети: $e'};
+    }
+  }
+
+  static Future<Map<String, dynamic>> clearChatHistory(int masterId) async {
+    try {
+      final response = await http.delete(
+        Uri.parse('$baseUrl/api/messages/$masterId'),
+        headers: _getHeaders(),
+      );
+
+      if (response.statusCode == 200) {
+        return json.decode(response.body);
+      }
+      return {'success': false, 'message': 'Ошибка очистки чата'};
+    } catch (e) {
+      print('Error clearing chat: $e');
+      return {'success': false, 'message': 'Ошибка сети: $e'};
     }
   }
 }

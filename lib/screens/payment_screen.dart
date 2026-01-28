@@ -176,7 +176,7 @@ class _PaymentScreenState extends State<PaymentScreen> {
                     Text('Услуга: ${widget.serviceType}'),
                     const SizedBox(height: 8),
                     Text(
-                      'Сумма: ${widget.amount} ₽',
+                      'Сумма: ${widget.amount} тг',
                       style: const TextStyle(
                         fontSize: 20,
                         fontWeight: FontWeight.bold,

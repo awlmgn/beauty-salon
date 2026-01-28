@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:table_calendar/table_calendar.dart';
 import '../services/api_service.dart';
 import '../models/master.dart';
+import 'chat_screen.dart'; // Импортируем экран чата
 
 class BookingScreen extends StatefulWidget {
   final Master? selectedMaster;
@@ -20,6 +21,9 @@ class _BookingScreenState extends State<BookingScreen> {
   int? _selectedMasterId;
   String _selectedMasterName = '';
   String _selectedService = 'Стрижка';
+
+  bool _showSuccessMessage = false; // Добавляем флаг для отображения успеха
+  Master? _bookedMaster; // Сохраняем мастера для чата
 
   final TextEditingController _nameController = TextEditingController();
   final TextEditingController _phoneController = TextEditingController();
@@ -108,7 +112,6 @@ class _BookingScreenState extends State<BookingScreen> {
       _selectedTime.minute,
     );
 
-    // ПРОСТАЯ ПРОВЕРКА - нельзя записываться на прошедшее время
     if (appointmentDateTime.isBefore(DateTime.now())) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Нельзя записаться на прошедшее время')),
@@ -117,17 +120,6 @@ class _BookingScreenState extends State<BookingScreen> {
     }
 
     try {
-      // ПРОПУСКАЕМ ПРОВЕРКУ ДОСТУПНОСТИ (будет работать всегда)
-      final isAvailable = true;
-
-      if (!isAvailable) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Это время уже занято. Выберите другое время.')),
-        );
-        return;
-      }
-
-      // Создаем запись
       final result = await ApiService.addAppointment(
         _selectedMasterId!,
         _selectedService,
@@ -137,18 +129,29 @@ class _BookingScreenState extends State<BookingScreen> {
       );
 
       if (result['success'] == true) {
+        // Находим мастера для чата
+        // В методе _bookAppointment найдите:
+        final bookedMaster = _masters.firstWhere(
+              (master) => master.id == _selectedMasterId,
+          orElse: () => Master(
+            id: _selectedMasterId!,
+            name: _selectedMasterName,
+            specialization: 'Парикмахер',  // Добавьте
+            description: 'Профессиональный мастер',  // Добавьте
+            experience: 3,  // Добавьте
+            imageUrl: 'assets/default_master.png',  // Добавьте
+          ),
+        );
+
+        setState(() {
+          _showSuccessMessage = true;
+          _bookedMaster = bookedMaster;
+        });
+
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(result['message'] ?? 'Запись успешно создана!')),
         );
 
-        // Очищаем форму
-        _nameController.clear();
-        _phoneController.clear();
-        setState(() {
-          _selectedDay = DateTime.now();
-          _focusedDay = DateTime.now();
-          _selectedTime = const TimeOfDay(hour: 10, minute: 0);
-        });
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(result['message'] ?? 'Ошибка создания записи')),
@@ -160,6 +163,29 @@ class _BookingScreenState extends State<BookingScreen> {
         const SnackBar(content: Text('Ошибка создания записи')),
       );
     }
+  }
+
+  void _openChat() {
+    if (_bookedMaster != null) {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => ChatScreen(master: _bookedMaster!),
+        ),
+      );
+    }
+  }
+
+  void _resetForm() {
+    setState(() {
+      _showSuccessMessage = false;
+      _bookedMaster = null;
+      _nameController.clear();
+      _phoneController.clear();
+      _selectedDay = DateTime.now();
+      _focusedDay = DateTime.now();
+      _selectedTime = const TimeOfDay(hour: 10, minute: 0);
+    });
   }
 
   @override
@@ -186,207 +212,296 @@ class _BookingScreenState extends State<BookingScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // КАЛЕНДАРЬ - ОСТАВЬТЕ ТОЛЬКО ЭТОТ ОДИН
-            Card(
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  children: [
-                    Text(
-                      'Выбранная дата: ${_selectedDay.day}.${_selectedDay.month}.${_selectedDay.year}',
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        color: Colors.pink,
-                        fontSize: 16,
+            // Если запись успешна, показываем сообщение и кнопку чата
+            if (_showSuccessMessage && _bookedMaster != null)
+              _buildSuccessCard(),
+
+            if (!_showSuccessMessage) ...[
+              // КАЛЕНДАРЬ
+              Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    children: [
+                      Text(
+                        'Выбранная дата: ${_selectedDay.day}.${_selectedDay.month}.${_selectedDay.year}',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: Colors.pink,
+                          fontSize: 16,
+                        ),
                       ),
-                    ),
-                    SizedBox(height: 10),
-                    TableCalendar(
-                      firstDay: DateTime.now(),
-                      lastDay: DateTime.now().add(const Duration(days: 365)),
-                      focusedDay: _focusedDay,
-                      selectedDayPredicate: (day) {
-                        return isSameDay(_selectedDay, day);
-                      },
-                      onDaySelected: (selectedDay, focusedDay) {
-                        if (!isSameDay(_selectedDay, selectedDay)) {
+                      SizedBox(height: 10),
+                      TableCalendar(
+                        firstDay: DateTime.now(),
+                        lastDay: DateTime.now().add(const Duration(days: 365)),
+                        focusedDay: _focusedDay,
+                        selectedDayPredicate: (day) {
+                          return isSameDay(_selectedDay, day);
+                        },
+                        onDaySelected: (selectedDay, focusedDay) {
+                          if (!isSameDay(_selectedDay, selectedDay)) {
+                            setState(() {
+                              _selectedDay = selectedDay;
+                              _focusedDay = focusedDay;
+                            });
+                          }
+                        },
+                        onPageChanged: (focusedDay) {
                           setState(() {
-                            _selectedDay = selectedDay;
                             _focusedDay = focusedDay;
                           });
-                        }
-                      },
-                      onPageChanged: (focusedDay) {
-                        setState(() {
-                          _focusedDay = focusedDay;
-                        });
-                      },
-                      headerStyle: const HeaderStyle(
-                        formatButtonVisible: false,
-                        titleCentered: true,
-                      ),
-                      calendarStyle: CalendarStyle(
-                        selectedDecoration: BoxDecoration(
-                          color: Colors.pink,
-                          shape: BoxShape.circle,
+                        },
+                        headerStyle: const HeaderStyle(
+                          formatButtonVisible: false,
+                          titleCentered: true,
                         ),
-                        todayDecoration: BoxDecoration(
-                          color: Colors.pink.shade100,
-                          shape: BoxShape.circle,
+                        calendarStyle: CalendarStyle(
+                          selectedDecoration: BoxDecoration(
+                            color: Colors.pink,
+                            shape: BoxShape.circle,
+                          ),
+                          todayDecoration: BoxDecoration(
+                            color: Colors.pink.shade100,
+                            shape: BoxShape.circle,
+                          ),
                         ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
-            ),
 
-            const SizedBox(height: 20),
+              const SizedBox(height: 20),
 
-            // ВЫБОР ВРЕМЕНИ - ДОБАВЬТЕ ЭТОТ БЛОК
-            Card(
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      'Выберите время:',
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 16,
+              // ВЫБОР ВРЕМЕНИ
+              Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Выберите время:',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
+                        ),
                       ),
-                    ),
-                    const SizedBox(height: 10),
-                    ListTile(
-                      leading: const Icon(Icons.access_time),
-                      title: Text('${_selectedTime.format(context)}'),
-                      trailing: const Icon(Icons.arrow_drop_down),
-                      onTap: _selectTime,
-                    ),
-                  ],
+                      const SizedBox(height: 10),
+                      ListTile(
+                        leading: const Icon(Icons.access_time),
+                        title: Text('${_selectedTime.format(context)}'),
+                        trailing: const Icon(Icons.arrow_drop_down),
+                        onTap: _selectTime,
+                      ),
+                    ],
+                  ),
                 ),
               ),
-            ),
 
-            const SizedBox(height: 20),
+              const SizedBox(height: 20),
 
-            // Выбор мастера и услуги
-            Card(
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      'Мастер:',
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
+              // Выбор мастера и услуги
+              Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Мастер:',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
-                    ),
-                    DropdownButton<int>(
-                      value: _selectedMasterId,
-                      isExpanded: true,
-                      items: _masters.map((Master master) {
-                        return DropdownMenuItem<int>(
-                          value: master.id,
-                          child: Text(master.name),
-                        );
-                      }).toList(),
-                      onChanged: (int? newValue) {
-                        setState(() {
-                          _selectedMasterId = newValue;
-                          _selectedMasterName = _masters
-                              .firstWhere((master) => master.id == newValue)
-                              .name;
-                        });
-                      },
-                    ),
-
-                    const SizedBox(height: 16),
-
-                    const Text(
-                      'Услуга:',
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
+                      DropdownButton<int>(
+                        value: _selectedMasterId,
+                        isExpanded: true,
+                        items: _masters.map((Master master) {
+                          return DropdownMenuItem<int>(
+                            value: master.id,
+                            child: Text(master.name),
+                          );
+                        }).toList(),
+                        onChanged: (int? newValue) {
+                          setState(() {
+                            _selectedMasterId = newValue;
+                            _selectedMasterName = _masters
+                                .firstWhere((master) => master.id == newValue)
+                                .name;
+                          });
+                        },
                       ),
-                    ),
-                    DropdownButton<String>(
-                      value: _selectedService,
-                      isExpanded: true,
-                      items: _services.map((String service) {
-                        return DropdownMenuItem<String>(
-                          value: service,
-                          child: Text(service),
-                        );
-                      }).toList(),
-                      onChanged: (String? newValue) {
-                        setState(() {
-                          _selectedService = newValue!;
-                        });
-                      },
-                    ),
-                  ],
+
+                      const SizedBox(height: 16),
+
+                      const Text(
+                        'Услуга:',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      DropdownButton<String>(
+                        value: _selectedService,
+                        isExpanded: true,
+                        items: _services.map((String service) {
+                          return DropdownMenuItem<String>(
+                            value: service,
+                            child: Text(service),
+                          );
+                        }).toList(),
+                        onChanged: (String? newValue) {
+                          setState(() {
+                            _selectedService = newValue!;
+                          });
+                        },
+                      ),
+                    ],
+                  ),
                 ),
               ),
-            ),
 
-            const SizedBox(height: 20),
+              const SizedBox(height: 20),
 
-            // Данные клиента
-            Card(
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      'Ваши данные:',
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 16,
+              // Данные клиента
+              Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Ваши данные:',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
+                        ),
                       ),
-                    ),
-                    const SizedBox(height: 12),
-                    TextField(
-                      controller: _nameController,
-                      decoration: const InputDecoration(
-                        labelText: 'Имя',
-                        border: OutlineInputBorder(),
+                      const SizedBox(height: 12),
+                      TextField(
+                        controller: _nameController,
+                        decoration: const InputDecoration(
+                          labelText: 'Имя',
+                          border: OutlineInputBorder(),
+                        ),
                       ),
-                    ),
-                    const SizedBox(height: 12),
-                    TextField(
-                      controller: _phoneController,
-                      decoration: const InputDecoration(
-                        labelText: 'Телефон',
-                        border: OutlineInputBorder(),
+                      const SizedBox(height: 12),
+                      TextField(
+                        controller: _phoneController,
+                        decoration: const InputDecoration(
+                          labelText: 'Телефон',
+                          border: OutlineInputBorder(),
+                        ),
+                        keyboardType: TextInputType.phone,
                       ),
-                      keyboardType: TextInputType.phone,
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
+
+              const SizedBox(height: 20),
+
+              // Кнопка записи
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: _bookAppointment,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.pink,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                  ),
+                  child: const Text(
+                    'Записаться',
+                    style: TextStyle(fontSize: 18),
+                  ),
+                ),
+              ),
+            ],
+
+            // Кнопка новой записи (показывается после успеха)
+            if (_showSuccessMessage)
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: _resetForm,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.grey[300],
+                    foregroundColor: Colors.black,
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                  ),
+                  child: const Text(
+                    'Создать новую запись',
+                    style: TextStyle(fontSize: 16),
+                  ),
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSuccessCard() {
+    return Card(
+      color: Colors.green.shade50,
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          children: [
+            const Icon(
+              Icons.check_circle,
+              color: Colors.green,
+              size: 60,
             ),
-
-            const SizedBox(height: 20),
-
-            // Кнопка записи
+            const SizedBox(height: 16),
+            const Text(
+              'Запись успешно создана!',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: Colors.green,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Мастер: $_selectedMasterName',
+              style: const TextStyle(fontSize: 16),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Дата: ${_selectedDay.day}.${_selectedDay.month}.${_selectedDay.year}',
+              style: const TextStyle(fontSize: 16),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Время: ${_selectedTime.format(context)}',
+              style: const TextStyle(fontSize: 16),
+            ),
+            const SizedBox(height: 16),
+            const Text(
+              'Хотите обсудить детали с мастером?',
+              style: TextStyle(fontSize: 16),
+            ),
+            const SizedBox(height: 16),
             SizedBox(
               width: double.infinity,
-              child: ElevatedButton(
-                onPressed: _bookAppointment,
+              child: ElevatedButton.icon(
+                onPressed: _openChat,
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.pink,
+                  backgroundColor: Colors.blue,
                   foregroundColor: Colors.white,
                   padding: const EdgeInsets.symmetric(vertical: 16),
                 ),
-                child: const Text(
-                  'Записаться',
-                  style: TextStyle(fontSize: 18),
+                icon: const Icon(Icons.chat),
+                label: const Text(
+                  'Начать чат с мастером',
+                  style: TextStyle(fontSize: 16),
                 ),
               ),
             ),
+            const SizedBox(height: 16),
           ],
         ),
       ),

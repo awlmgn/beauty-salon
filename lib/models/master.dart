@@ -4,6 +4,7 @@ class Master {
   final String specialization;
   final String description;
   final int experience;  final String imageUrl;
+  final double rating;
   bool isFavorite;
 
   Master({
@@ -13,7 +14,7 @@ class Master {
     required this.description,
     required this.experience,
     required this.imageUrl,
-    // Устанавливаем значение по умолчанию, если оно не предоставлено
+    this.rating = 0.0,
     this.isFavorite = false,
   });
 
@@ -25,9 +26,20 @@ class Master {
       description: json['description'],
       experience: json['experience'],
       imageUrl: json['image_url'],
-      // Парсим новое поле 'is_favorite' из ответа сервера.
-      // Если поле отсутствует, значением будет false.
+      rating: json['rating'] != null ? double.parse(json['rating'].toString()) : 0.0,
       isFavorite: json['is_favorite'] ?? false,
     );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'name': name,
+      'specialization': specialization,
+      'description': description,
+      'experience': experience,
+      'rating': rating,
+      'image_url': imageUrl,
+    };
   }
 }

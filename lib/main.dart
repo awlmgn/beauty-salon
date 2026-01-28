@@ -9,6 +9,7 @@ import 'screens/favorites_screen.dart';
 import 'screens/reviews_screen.dart';
 import 'screens/booking_screen.dart';
 import 'services/user_service.dart';
+import 'screens/chats_screen.dart';
 import 'models/user.dart';
 
 void main() {
@@ -84,6 +85,7 @@ class MyApp extends StatelessWidget {
           '/settings': (context) => SettingsScreen(),
           '/favorites': (context) => FavoritesScreen(),
           '/reviews': (context) => ReviewsScreen(),
+          '/chats': (context) => ChatsScreen(),
           '/booking': (context) => BookingScreen(),
         },
       ),
