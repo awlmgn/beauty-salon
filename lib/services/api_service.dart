@@ -3,6 +3,7 @@ import 'package:http/http.dart' as http;
 import '../models/user.dart';
 import '../models/master.dart';
 import '../models/message.dart';
+import 'package:dio/dio.dart';
 class ApiService {
   // 🚀 ОБНОВИТЕ АДРЕС НА ВАШ АКТУАЛЬНЫЙ
   static const String baseUrl = 'http://localhost:5000/api';
@@ -567,6 +568,10 @@ class ApiService {
       return {'success': false, 'message': 'Ошибка сети: $e'};
     }
   }
+
+  Future fetchNotes() async {}
 }
+
+
 
 
